@@ -1,5 +1,7 @@
 # BeamBudget-LiDAR
 
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/CTRIYAS/BeamBudget-LiDAR/blob/main/beambudget_01.ipynb)
+
 **How much depth information survives when a LiDAR loses beams?**
 
 Using real Velodyne HDL-64E scans from KITTI, I remove whole laser rings to emulate
@@ -73,20 +75,24 @@ interpolation, and score the reconstruction against the held-out rings.
 - **But it is not uniformly better.** `linear_inv` has a slightly *higher* RMSE than
   `linear` (e.g. 3.99 m vs 3.84 m at 16 beams): averaging 1/z pulls predictions toward
   the nearer surface, so misses at foreground/background edges are larger.
-- **RMSE is a misleading headline here.** It is dominated by edge outliers
-  (3.5–5.7 m overall) while the median error is 6–76 cm, so I report median and P90
-  alongside it.
+- **RMSE is a misleading headline here.** Overall RMSE is 3.5–5.7 m while the median
+  error is 6–76 cm. Measured on frame 0 (16 beams, `linear_inv`): edge points are about
+  25 % of the held-out points but account for about 97 % of the squared error
+  (RMSE 10.2 m at edges vs 1.0 m on smooth points). So I report median and P90
+  alongside RMSE.
 - **At edges, copying beats blending.** At 8 and 16 beams, `nearest` gets more edge
   points within 10 cm (0.16 / 0.17) than `linear_inv` (0.10 / 0.15) or `linear`
   (0.05 / 0.09): it copies a real depth instead of inventing one between foreground and
   background.
-- **Cost.** `nearest` takes about 20–27 ms per frame and configuration; the linear
-  methods take 70–300 ms, growing with the number of kept points (triangulation).
+- **Cost.** Interpolation time only (not loading, projection or ring assignment):
+  `nearest` takes about 20–27 ms per frame and configuration, the linear methods
+  70–300 ms, growing with the number of kept points (triangulation). Measured on a
+  standard Colab CPU runtime.
 
 ### Robustness of the edge definition
 
 The edge rule takes the 8 nearest projected neighbours without a distance limit. I
-re-ran frame 0 (16 beams, `linear_inv`) with the neighbours capped at a pixel radius
+re-ran **frame 0 only** (16 beams, `linear_inv`) with the neighbours capped at a pixel radius
 ([`results/edge_sensitivity_frame0.csv`](results/edge_sensitivity_frame0.csv)):
 
 | Radius cap | Edge share | Smooth MAE | Smooth ≤10 cm | Edge MAE | Edge ≤10 cm |
@@ -97,15 +103,17 @@ re-ran frame 0 (16 beams, `linear_inv`) with the neighbours capped at a pixel ra
 | 5 px  | 21.6 % | 0.36 m | 66 % | 5.7 m | 9 % |
 | 3 px  | 10.2 % | 0.73 m | 59 % | 8.7 m | 3 % |
 
-From 10 px up, the classification is identical, so the missing distance limit does not
-change the results. At 3 px, neighbours on the adjacent ring fall outside the radius,
-real vertical edges are missed and leak into the "smooth" class. At every radius, edge
-error stays an order of magnitude above smooth error, so the main conclusion holds.
+On this frame, capping the neighbourhood at 10 px or more did not change the edge
+classification. At 3 px, neighbours on the adjacent ring fall outside the radius, real
+vertical edges are missed and leak into the "smooth" class. At every radius tested,
+edge error stays an order of magnitude above smooth error. Sensitivity across the full
+sequence has not been evaluated yet.
 
 ## Limitations
 
-- One drive; its 153 consecutive frames (~15 s) are strongly correlated, so the ± std
-  across frames understates the true uncertainty.
+- **All findings are specific to one sequence** (drive 0005, urban Karlsruhe). Its 153
+  consecutive frames (~15 s) are strongly correlated, so the ± std across frames
+  understates the true uncertainty, and other environments (highway, rural) may differ.
 - Removing rings is not the same as simulating a native low-resolution sensor.
 - The edge definition is a heuristic and flags about 26 % of points, including some
   noisy distant regions.
