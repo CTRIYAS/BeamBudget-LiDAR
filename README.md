@@ -146,3 +146,8 @@ a CPU runtime.
 
 KITTI data © Geiger et al., *Vision meets Robotics: The KITTI Dataset*, IJRR 2013
 (CC BY-NC-SA 3.0). The data is not redistributed here.
+
+## License
+
+Code is released under the [MIT License](LICENSE). The KITTI data used by the notebook is
+not covered by this license and remains under its own CC BY-NC-SA 3.0 terms.
